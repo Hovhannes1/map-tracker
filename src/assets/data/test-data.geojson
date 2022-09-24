@@ -6,12 +6,13 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          47.635764077008794, 6.833520198838472
+          47.6357, 6.8335
         ]
       },
       "properties": {
         "name": "Alexis",
         "state": "",
+        "population": 199518
       }
     },
     {
@@ -19,12 +20,13 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          47.64621114151999, 6.855204001188663
+          47.6462, 6.8552
         ]
       },
       "properties": {
         "name": "Melvyn",
         "state": "",
+        "population": 199518
       }
     },
     {
@@ -32,12 +34,13 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          47.634332083048065, 6.861736689374021
+          47.6343, 6.8617
         ]
       },
       "properties": {
         "name": "Anselm",
         "state": "",
+        "population": 199518
       }
     },
     {
@@ -45,12 +48,13 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          47.64434440225525, 6.838183533949501
+          47.6443, 6.8381
         ]
       },
       "properties": {
         "name": "Hovhannes",
         "state": "",
+        "population": 199518
       }
     }
   ]

@@ -17,10 +17,12 @@ export class MarkerService {
       for (const c of res.features) {
         const lon = c.geometry.coordinates[0];
         const lat = c.geometry.coordinates[1];
-        const marker = L.marker([lat, lon]);
+        const name = c.properties.name;
+        const marker = L.marker([lon, lat]);
 
         // @ts-ignore
-        marker.addTo(map);
+        marker.addTo(map)
+          .bindPopup(`<div class="marker-popup"><div class="marker-popup__title">${name}</div><div>Lon: ${lon}, Lat: ${lat}</div></div>`);
       }
     });
   }

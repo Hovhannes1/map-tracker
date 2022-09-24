@@ -1,4 +1,4 @@
-import {AfterViewInit, Component} from '@angular/core';
+import {AfterViewInit, Component, ViewEncapsulation} from '@angular/core';
 import * as L from 'leaflet';
 
 import {MarkerService} from '../marker.service';
@@ -22,7 +22,8 @@ L.Marker.prototype.options.icon = iconDefault;
 @Component({
   selector: 'app-map',
   templateUrl: './map.component.html',
-  styleUrls: ['./map.component.scss']
+  styleUrls: ['./map.component.scss'],
+  encapsulation: ViewEncapsulation.None,
 })
 export class MapComponent implements AfterViewInit {
   private map: L.Map | undefined;
@@ -32,12 +33,27 @@ export class MapComponent implements AfterViewInit {
   ) {
   }
 
-  private initMap(position: { coords: { latitude: any; longitude: any } }): void {
-    const {
-      coords: {latitude, longitude},
-    } = position;
+  // with current location
+  // private initMap(position: { coords: { latitude: any; longitude: any } }): void {
+  //   const {
+  //     coords: {latitude, longitude},
+  //   } = position;
+  //
+  //   this.map = L.map('map', {center : [latitude, longitude], zoom : 10});
+  //
+  //   const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  //     maxZoom: 18,
+  //     minZoom: 3,
+  //   });
+  //
+  //   tiles.addTo(this.map);
+  // }
 
-    this.map = L.map('map', {center : [latitude, longitude], zoom : 10});
+  private initMap(): void {
+    this.map = L.map('map', {
+      center: [ 47.6443, 6.8381 ],
+      zoom: 14
+    });
 
     const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
@@ -48,10 +64,11 @@ export class MapComponent implements AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.initMap.bind(this)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(this.initMap.bind(this));
-    }
+    this.initMap();
+    // with current location
+    // if (navigator.geolocation) {
+    //   navigator.geolocation.getCurrentPosition(this.initMap.bind(this));
+    // }
     this.markerService.makeCapitalMarkers(this.map);
   }
 }
