@@ -37,7 +37,7 @@ export class MapComponent implements AfterViewInit {
       coords: {latitude, longitude},
     } = position;
 
-    this.map = L.map('map',).setView([latitude, longitude], 10);
+    this.map = L.map('map', {center : [latitude, longitude], zoom : 10});
 
     const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
@@ -48,6 +48,7 @@ export class MapComponent implements AfterViewInit {
   }
 
   ngAfterViewInit(): void {
+    this.initMap.bind(this)
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(this.initMap.bind(this));
     }
