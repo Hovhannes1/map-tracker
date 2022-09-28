@@ -12,18 +12,20 @@ export class MarkerService {
   constructor(private http: HttpClient) {
   }
 
-  makeCapitalMarkers(map: Map | undefined): void {
-    this.http.get(this.data).subscribe((res: any) => {
-      for (const c of res.features) {
-        const lon = c.geometry.coordinates[0];
-        const lat = c.geometry.coordinates[1];
-        const name = c.properties.name;
-        const marker = L.marker([lon, lat]);
+  makeCapitalMarkers(map: Map | undefined, people:any) {
+    const lon = people.lon;
+    const lat = people.lat;
+    const name = people.name;
+    const marker = L.marker([lon, lat]);
 
-        // @ts-ignore
-        marker.addTo(map)
-          .bindPopup(`<div class="marker-popup"><div class="marker-popup__title">${name}</div><div>Lon: ${lon}, Lat: ${lat}</div></div>`);
-      }
-    });
+    // @ts-ignore
+    marker.addTo(map)
+      .bindPopup(`<div class="marker-popup"><div class="marker-popup__title">${name}</div><div>Lon: ${lon}, Lat: ${lat}</div><div><span (click)="editMarker()">Edit</span><span>Remove</span></div></div>`);
+
+    return marker;
+  }
+
+  removeCapitalMarkers(map: Map | undefined, marker: L.Marker) {
+    map?.removeLayer(marker);
   }
 }

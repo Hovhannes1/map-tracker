@@ -1,4 +1,5 @@
 import {AfterViewInit, Component, ViewEncapsulation} from '@angular/core';
+import { AngularFireDatabase } from '@angular/fire/compat/database';
 import * as L from 'leaflet';
 
 import {MarkerService} from '../marker.service';
@@ -26,11 +27,20 @@ L.Marker.prototype.options.icon = iconDefault;
   encapsulation: ViewEncapsulation.None,
 })
 export class MapComponent implements AfterViewInit {
+
+
+  markers:Array<any> = [];
+
   private map: L.Map | undefined;
 
   constructor(
-    private markerService: MarkerService
+    private markerService: MarkerService,
+    private db: AngularFireDatabase
   ) {
+  }
+
+  ngOnInit(): void {
+    
   }
 
   // with current location
@@ -65,10 +75,25 @@ export class MapComponent implements AfterViewInit {
 
   ngAfterViewInit(): void {
     this.initMap();
-    // with current location
-    // if (navigator.geolocation) {
-    //   navigator.geolocation.getCurrentPosition(this.initMap.bind(this));
-    // }
-    this.markerService.makeCapitalMarkers(this.map);
+    
+    this.db.database.ref('people').on('value', (snapshot) => {7
+      let people = snapshot.val();
+      if (people) {
+
+        for (let i = 0; i < this.markers.length; i++) {
+          const element = this.markers[i];
+          this.markerService.removeCapitalMarkers(this.map, element);
+        }
+
+        for (const [key, value] of Object.entries(people)) {
+          let m = this.markerService.makeCapitalMarkers(this.map, value);
+          this.markers.push(m);
+        }
+      }
+    });
+  }
+
+  editMarker() {
+    console.log('edit');
   }
 }
