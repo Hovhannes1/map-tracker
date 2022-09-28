@@ -9,10 +9,10 @@ import {Map} from 'leaflet';
 export class MarkerService {
   data: string = '/assets/data/test-data.geojson';
 
-  constructor(private http: HttpClient) {
+  constructor() {
   }
 
-  makeCapitalMarkers(map: Map | undefined, people:any) {
+  makeUserLocationMarkers(map: Map | undefined, people: any, id: string) {
     const lon = people.lon;
     const lat = people.lat;
     const name = people.name;
@@ -20,12 +20,20 @@ export class MarkerService {
 
     // @ts-ignore
     marker.addTo(map)
-      .bindPopup(`<div class="marker-popup"><div class="marker-popup__title">${name}</div><div>Lon: ${lon}, Lat: ${lat}</div><div><span (click)="editMarker()">Edit</span><span>Remove</span></div></div>`);
-
+      .bindPopup(`<div class="marker-popup">
+                            <div class="marker-popup__title">
+                                ${name}
+                            </div>
+                            <div>Lon: ${lon}, Lat: ${lat}</div>
+                            <div markerId="${id}" class="marker-popup__actions">
+                              <span id="edit-marker" class="marker-popup__action-ed">Edit</span>
+                              <span id="del-marker" class="marker-popup__action-del">Remove</span>
+                            </div>
+                           </div>`);
     return marker;
   }
 
-  removeCapitalMarkers(map: Map | undefined, marker: L.Marker) {
+  removeUserLocationMarkers(map: Map | undefined, marker: L.Marker) {
     map?.removeLayer(marker);
   }
 }

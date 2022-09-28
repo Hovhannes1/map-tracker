@@ -1,5 +1,5 @@
-import {AfterViewInit, Component, ViewEncapsulation} from '@angular/core';
-import { AngularFireDatabase } from '@angular/fire/compat/database';
+import {AfterViewInit, Component, HostListener, ViewEncapsulation} from '@angular/core';
+import {AngularFireDatabase} from '@angular/fire/compat/database';
 import * as L from 'leaflet';
 
 import {MarkerService} from '../marker.service';
@@ -40,7 +40,7 @@ export class MapComponent implements AfterViewInit {
   }
 
   ngOnInit(): void {
-    
+
   }
 
   // with current location
@@ -73,27 +73,43 @@ export class MapComponent implements AfterViewInit {
     tiles.addTo(this.map);
   }
 
+  @HostListener('document:click', ['$event'])
+  clickout(event: any)
+  {
+    if(event.target.id === 'edit-marker')
+      this.editMarker(event.target.parentElement.getAttribute('markerId'));
+    if(event.target.id === 'del-marker')
+      this.delMarker(event.target.parentElement.getAttribute('markerId'));
+  }
+
   ngAfterViewInit(): void {
     this.initMap();
-    
-    this.db.database.ref('people').on('value', (snapshot) => {7
+
+    this.db.database.ref('people').on('value', (snapshot: any) => {
       let people = snapshot.val();
       if (people) {
 
         for (let i = 0; i < this.markers.length; i++) {
           const element = this.markers[i];
-          this.markerService.removeCapitalMarkers(this.map, element);
+          this.markerService.removeUserLocationMarkers(this.map, element);
         }
 
         for (const [key, value] of Object.entries(people)) {
-          let m = this.markerService.makeCapitalMarkers(this.map, value);
+          let m = this.markerService.makeUserLocationMarkers(this.map, value, key);
           this.markers.push(m);
         }
       }
     });
   }
 
-  editMarker() {
-    console.log('edit');
+  editMarker(markerId: number) {
+    console.log('Edit: ', markerId);
+  }
+
+  delMarker(markerId: number) {
+    console.log('Del: ', markerId);
+    this.db.database.ref('people/' + markerId).remove().then(() => {
+      console.log('Marker deleted');
+    });
   }
 }
