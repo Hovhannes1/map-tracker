@@ -28,8 +28,9 @@ L.Marker.prototype.options.icon = iconDefault;
 })
 export class MapComponent implements AfterViewInit {
 
+  public newLocationTriggerActive = false;
 
-  markers:Array<any> = [];
+  markers: Array<any> = [];
 
   private map: L.Map | undefined;
 
@@ -61,7 +62,7 @@ export class MapComponent implements AfterViewInit {
 
   private initMap(): void {
     this.map = L.map('map', {
-      center: [ 47.6443, 6.8381 ],
+      center: [47.6443, 6.8381],
       zoom: 14
     });
 
@@ -74,11 +75,10 @@ export class MapComponent implements AfterViewInit {
   }
 
   @HostListener('document:click', ['$event'])
-  clickout(event: any)
-  {
-    if(event.target.id === 'edit-marker')
+  clickout(event: any) {
+    if (event.target.id === 'edit-marker')
       this.editMarker(event.target.parentElement.getAttribute('markerId'));
-    if(event.target.id === 'del-marker')
+    if (event.target.id === 'del-marker')
       this.delMarker(event.target.parentElement.getAttribute('markerId'));
   }
 
@@ -100,10 +100,24 @@ export class MapComponent implements AfterViewInit {
         }
       }
     });
+
+    // @ts-ignore
+    this.map.on("click", e => {
+      console.log(e.latlng); // get the coordinates
+      if (this.newLocationTriggerActive) {
+        this.db.database.ref('people').push({
+          lat: e.latlng.lat,
+          lon: e.latlng.lng,
+          name: 'New Location'
+        });
+        this.newLocationTriggerActive = false;
+      }
+    });
   }
 
   editMarker(markerId: number) {
     console.log('Edit: ', markerId);
+
   }
 
   delMarker(markerId: number) {
@@ -111,5 +125,9 @@ export class MapComponent implements AfterViewInit {
     this.db.database.ref('people/' + markerId).remove().then(() => {
       console.log('Marker deleted');
     });
+  }
+
+  addNewLocation() {
+    this.newLocationTriggerActive = true;
   }
 }

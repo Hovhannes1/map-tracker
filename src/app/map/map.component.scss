@@ -8,6 +8,12 @@ app-map {
 .map-container {
   flex-grow: 1;
   width: 100%;
+
+  &.map-container--new-loc {
+    #map {
+      cursor: pointer;
+    }
+  }
 }
 
 .map-frame {

@@ -1,5 +1,4 @@
 import {Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
 import * as L from 'leaflet';
 import {Map} from 'leaflet';
 
@@ -16,7 +15,7 @@ export class MarkerService {
     const lon = people.lon;
     const lat = people.lat;
     const name = people.name;
-    const marker = L.marker([lon, lat]);
+    const marker = L.marker([lat, lon]);
 
     // @ts-ignore
     marker.addTo(map)
