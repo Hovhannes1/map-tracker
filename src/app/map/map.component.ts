@@ -3,6 +3,8 @@ import {AngularFireDatabase} from '@angular/fire/compat/database';
 import * as L from 'leaflet';
 
 import {MarkerService} from '../marker.service';
+import {MarkerEditPopup} from "../marker-edit-popup/marker-edit-popup";
+import {MatDialog} from "@angular/material/dialog";
 
 const iconRetinaUrl = 'assets/marker-icon-2x.png';
 const iconUrl = 'assets/marker-icon.png';
@@ -31,12 +33,13 @@ export class MapComponent implements AfterViewInit {
   public newLocationTriggerActive = false;
 
   markers: Array<any> = [];
-
   private map: L.Map | undefined;
+  private userData: any;
 
   constructor(
     private markerService: MarkerService,
-    private db: AngularFireDatabase
+    private db: AngularFireDatabase,
+    private dialog: MatDialog
   ) {
   }
 
@@ -88,6 +91,7 @@ export class MapComponent implements AfterViewInit {
     this.db.database.ref('people').on('value', (snapshot: any) => {
       let people = snapshot.val();
       if (people) {
+        this.userData = people;
 
         for (let i = 0; i < this.markers.length; i++) {
           const element = this.markers[i];
@@ -105,23 +109,47 @@ export class MapComponent implements AfterViewInit {
     this.map.on("click", e => {
       console.log(e.latlng); // get the coordinates
       if (this.newLocationTriggerActive) {
-        this.db.database.ref('people').push({
-          lat: e.latlng.lat,
-          lon: e.latlng.lng,
-          name: 'New Location'
+        const dialogRef = this.dialog.open(MarkerEditPopup, {
+          width: '360px',
+          data: {name: 'New User Name', lon: e.latlng.lng, lat: e.latlng.lat}
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+          if (result) {
+            this.db.database.ref('people').push({
+              name: result.name,
+              lat: result.lat,
+              lon: result.lon
+            });
+          }
         });
         this.newLocationTriggerActive = false;
       }
     });
   }
 
-  editMarker(markerId: number) {
-    console.log('Edit: ', markerId);
+  editMarker(markerId: string) {
+    const name = this.userData[markerId].name;
+    const lat = this.userData[markerId].lat;
+    const lon = this.userData[markerId].lon;
 
+    const dialogRef = this.dialog.open(MarkerEditPopup, {
+      width: '360px',
+      data: {name: name, lon: lon, lat: lat}
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.db.database.ref('people/' + markerId).update({
+          name: result.name,
+          lat: result.lat,
+          lon: result.lon
+        });
+      }
+    });
   }
 
   delMarker(markerId: number) {
-    console.log('Del: ', markerId);
     this.db.database.ref('people/' + markerId).remove().then(() => {
       console.log('Marker deleted');
     });

@@ -19,6 +19,9 @@ import {MarkerEditPopup} from "./marker-edit-popup/marker-edit-popup";
 // Material components
 import {MatButtonModule} from '@angular/material/button';
 import {MatDialogModule} from '@angular/material/dialog';
+import {MatInput, MatInputModule} from "@angular/material/input";
+import {FormsModule} from "@angular/forms";
+import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
 
 
 @NgModule({
@@ -37,6 +40,9 @@ import {MatDialogModule} from '@angular/material/dialog';
     HttpClientModule,
     MatButtonModule,
     MatDialogModule,
+    MatInputModule,
+    FormsModule,
+    BrowserAnimationsModule
   ],
   providers: [
     MarkerService,
