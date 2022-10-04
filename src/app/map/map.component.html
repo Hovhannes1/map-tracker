@@ -1,7 +1,7 @@
 
 <div class="map-header">
   <button (click)="addNewLocation()" mat-raised-button color="primary">Add Location</button>
-<!--  <button mat-raised-button color="primary">Add Location</button>-->
+  <button (click)="calculatePath()" mat-raised-button color="primary">Calculate Meeting Point</button>
   <button mat-raised-button color="primary">Compute Paths</button>
 </div>
 <div class="map-container" [ngClass]="{'map-container--new-loc': newLocationTriggerActive}">

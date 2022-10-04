@@ -1,6 +1,8 @@
 import {AfterViewInit, Component, HostListener, ViewEncapsulation} from '@angular/core';
 import {AngularFireDatabase} from '@angular/fire/compat/database';
 import * as L from 'leaflet';
+import 'leaflet-routing-machine';
+
 
 import {MarkerService} from '../marker.service';
 import {MarkerEditPopup} from "../marker-edit-popup/marker-edit-popup";
@@ -32,7 +34,8 @@ export class MapComponent implements AfterViewInit {
 
   public newLocationTriggerActive = false;
 
-  markers: Array<any> = [];
+  private markers: Array<any> = [];
+  private paths: Array<any> = [];
   private map: L.Map | undefined;
   private userData: any;
 
@@ -46,22 +49,6 @@ export class MapComponent implements AfterViewInit {
   ngOnInit(): void {
 
   }
-
-  // with current location
-  // private initMap(position: { coords: { latitude: any; longitude: any } }): void {
-  //   const {
-  //     coords: {latitude, longitude},
-  //   } = position;
-  //
-  //   this.map = L.map('map', {center : [latitude, longitude], zoom : 10});
-  //
-  //   const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  //     maxZoom: 18,
-  //     minZoom: 3,
-  //   });
-  //
-  //   tiles.addTo(this.map);
-  // }
 
   private initMap(): void {
     this.map = L.map('map', {
@@ -109,20 +96,7 @@ export class MapComponent implements AfterViewInit {
     this.map.on("click", e => {
       console.log(e.latlng); // get the coordinates
       if (this.newLocationTriggerActive) {
-        const dialogRef = this.dialog.open(MarkerEditPopup, {
-          width: '360px',
-          data: {name: 'New User Name', lon: e.latlng.lng, lat: e.latlng.lat}
-        });
-
-        dialogRef.afterClosed().subscribe(result => {
-          if (result) {
-            this.db.database.ref('people').push({
-              name: result.name,
-              lat: result.lat,
-              lon: result.lon
-            });
-          }
-        });
+        this.openMarkerEditPopup('New User Name', e.latlng.lat, e.latlng.lng);
         this.newLocationTriggerActive = false;
       }
     });
@@ -133,20 +107,7 @@ export class MapComponent implements AfterViewInit {
     const lat = this.userData[markerId].lat;
     const lon = this.userData[markerId].lon;
 
-    const dialogRef = this.dialog.open(MarkerEditPopup, {
-      width: '360px',
-      data: {name: name, lon: lon, lat: lat}
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.db.database.ref('people/' + markerId).update({
-          name: result.name,
-          lat: result.lat,
-          lon: result.lon
-        });
-      }
-    });
+    this.openMarkerEditPopup(name, lat, lon);
   }
 
   delMarker(markerId: number) {
@@ -157,5 +118,111 @@ export class MapComponent implements AfterViewInit {
 
   addNewLocation() {
     this.newLocationTriggerActive = true;
+  }
+
+  openMarkerEditPopup(name: string, lat: number, lon: number) {
+    const dialogRef = this.dialog.open(MarkerEditPopup, {
+      width: '360px',
+      data: {name: name, lon: lon, lat: lat}
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.db.database.ref('people').push({
+          name: result.name,
+          lat: result.lat,
+          lon: result.lon
+        });
+      }
+    });
+  }
+
+  calculateMeetingPoints(size: number) {
+    // calculating the meeting point
+    let sumOfLat = 0;
+    let sumOfLon = 0;
+
+    for (const [key, value] of Object.entries(this.userData)) {
+      // @ts-ignore
+      sumOfLat += +value.lat;
+      // @ts-ignore
+      sumOfLon += +value.lon;
+    }
+    return [+sumOfLat / size, +sumOfLon / size];
+  }
+
+  calculatePath() {
+    const size = Object.keys(this.userData).length;
+
+    // calculating the meeting point
+    const [metingPointLat, metingPointLon] = this.calculateMeetingPoints(size);
+
+    //check if there are paths already if yes remove them
+    if (this.paths.length > 0) {
+      this.cleanPaths();
+      //  call the addThePaths function with time out to wait for the map to remove the old paths
+      setTimeout(() => {
+        this.addThePaths(metingPointLat, metingPointLon, size);
+
+      }, 1000);
+    } else {
+      this.addThePaths(metingPointLat, metingPointLon, size);
+    }
+
+    // adding meeting point marker
+    const metingPointMarker = L.marker([metingPointLat, metingPointLon]);
+    this.paths.push(metingPointMarker);
+    // @ts-ignore
+    metingPointMarker.addTo(this.map);
+    //  TODO: clean marker
+  }
+
+  private static getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '';
+    for (let j = 0; j < 6; j++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return '#' + color;
+  }
+
+  private addThePaths(metingPointLat: number, metingPointLon: number, size: number) {
+    // create random colors list with length of size
+    const colors = [];
+    for (let i = 0; i < size; i++) {
+      colors.push(MapComponent.getRandomColor());
+    }
+
+    let i = 0;
+    for (const [key, value] of Object.entries(this.userData)) {
+      const m = L.Routing.control({
+        router: L.Routing.osrmv1({
+          serviceUrl: `http://router.project-osrm.org/route/v1/`
+        }),
+        // @ts-ignore
+        lineOptions: {styles: [{color: colors[i], weight: 7}]},
+        // disable creatMarker
+        createMarker: () => {
+          return null;
+        },
+        waypoints: [
+          // @ts-ignore
+          L.latLng(value.lat, value.lon),
+          L.latLng(metingPointLat, metingPointLon),
+        ],
+        addWaypoints: false,
+        // @ts-ignore
+      }).addTo(this.map);
+
+      this.paths.push(m);
+      i++;
+    }
+  }
+
+  private cleanPaths() {
+    for (let i = 0; i < this.paths.length; i++) {
+      const element = this.paths[i];
+      this.map?.removeControl(element);
+    }
   }
 }
