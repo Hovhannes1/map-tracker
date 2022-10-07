@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, HostListener, ViewEncapsulation} from '@angular/core';
+import {Component, HostListener, OnDestroy, ViewEncapsulation} from '@angular/core';
 import {AngularFireDatabase} from '@angular/fire/compat/database';
 import * as L from 'leaflet';
 import 'leaflet-routing-machine';
@@ -30,7 +30,7 @@ L.Marker.prototype.options.icon = iconDefault;
   styleUrls: ['./map.component.scss'],
   encapsulation: ViewEncapsulation.None,
 })
-export class MapComponent implements AfterViewInit {
+export class MapComponent implements OnDestroy {
 
   public newLocationTriggerActive = false;
 
@@ -38,6 +38,9 @@ export class MapComponent implements AfterViewInit {
   private paths: Array<any> = [];
   private map: L.Map | undefined;
   private userData: any;
+
+  private myCurrentKey: string = '';
+  private myCurrentLocation: any;
 
   constructor(
     private markerService: MarkerService,
@@ -47,12 +50,46 @@ export class MapComponent implements AfterViewInit {
   }
 
   ngOnInit(): void {
+  //  send my current location fist time I open the app to the database
+    navigator.geolocation.getCurrentPosition((position) => {
+      this.saveNewMarkerPosition('Me', position.coords.latitude, position.coords.longitude, (res) => {
+        this.myCurrentKey = res.key;
+        this.myCurrentLocation = {lat: position.coords.latitude, lon: position.coords.longitude};
 
+        // init the map after I get my current location
+        this.afterViewInit();
+      });
+    })
+
+    // Run ngOnDestroy function when I close/reload the browser tab
+    window.onbeforeunload = () => this.ngOnDestroy();
   }
 
-  private initMap(): void {
+  locationChanged = (position: any) => {
+    if (this.myCurrentKey && this.myCurrentLocation) {
+      // check if coordinate changes are significant enough: the threshold is 0.0001
+      const isSignificant = Math.abs(position.coords.latitude - this.myCurrentLocation.lat) > 0.0001 ||
+        Math.abs(position.coords.longitude - this.myCurrentLocation.lon) > 0.0001;
+      if (isSignificant) {
+        this.saveEditedMarkerPosition(this.myCurrentKey, 'Me', position.coords.latitude, position.coords.longitude);
+      }
+    }
+  }
+
+  locationChangeError = (err: any) => {
+    console.log(`ERROR(${err.code}): ${err.message}`);
+  }
+
+  ngOnDestroy(): void {
+  //  delete my location from the database when I close the app
+    this.db.database.ref('people/' + this.myCurrentKey).remove().then(() => {
+      console.log('Marker deleted');
+    });
+  }
+
+  private initMap(position: any): void {
     this.map = L.map('map', {
-      center: [47.6443, 6.8381],
+      center: [position.lat, position.lon],
       zoom: 14
     });
 
@@ -72,8 +109,8 @@ export class MapComponent implements AfterViewInit {
       this.delMarker(event.target.parentElement.getAttribute('markerId'));
   }
 
-  ngAfterViewInit(): void {
-    this.initMap();
+  afterViewInit(): void {
+    this.initMap(this.myCurrentLocation);
 
     this.db.database.ref('people').on('value', (snapshot: any) => {
       let people = snapshot.val();
@@ -92,9 +129,15 @@ export class MapComponent implements AfterViewInit {
       }
     });
 
-    // @ts-ignore
-    this.map.on("click", e => {
-      console.log(e.latlng); // get the coordinates
+    // listen to the geolocation changes
+    navigator.geolocation.watchPosition(this.locationChanged, this.locationChangeError, {
+      enableHighAccuracy: false,
+      timeout: 3000,
+      maximumAge: 0
+    });
+
+    // adding new location function
+    this.map?.on("click", e => {
       if (this.newLocationTriggerActive) {
         this.openMarkerEditPopup('New User Name', e.latlng.lat, e.latlng.lng);
         this.newLocationTriggerActive = false;
@@ -107,7 +150,7 @@ export class MapComponent implements AfterViewInit {
     const lat = this.userData[markerId].lat;
     const lon = this.userData[markerId].lon;
 
-    this.openMarkerEditPopup(name, lat, lon);
+    this.openMarkerEditPopup(name, lat, lon, markerId);
   }
 
   delMarker(markerId: number) {
@@ -120,7 +163,7 @@ export class MapComponent implements AfterViewInit {
     this.newLocationTriggerActive = true;
   }
 
-  openMarkerEditPopup(name: string, lat: number, lon: number) {
+  openMarkerEditPopup(name: string, lat: number, lon: number, markerId?: string) {
     const dialogRef = this.dialog.open(MarkerEditPopup, {
       width: '360px',
       data: {name: name, lon: lon, lat: lat}
@@ -128,11 +171,11 @@ export class MapComponent implements AfterViewInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.db.database.ref('people').push({
-          name: result.name,
-          lat: result.lat,
-          lon: result.lon
-        });
+        if (markerId) {
+          this.saveEditedMarkerPosition(markerId, result.name, result.lat, result.lon);
+        } else {
+          this.saveNewMarkerPosition(result.name, result.lat, result.lon);
+        }
       }
     });
   }
@@ -142,7 +185,7 @@ export class MapComponent implements AfterViewInit {
     let sumOfLat = 0;
     let sumOfLon = 0;
 
-    for (const [key, value] of Object.entries(this.userData)) {
+    for (const [, value] of Object.entries(this.userData)) {
       // @ts-ignore
       sumOfLat += +value.lat;
       // @ts-ignore
@@ -170,11 +213,10 @@ export class MapComponent implements AfterViewInit {
     }
 
     // adding meeting point marker
-    const metingPointMarker = L.marker([metingPointLat, metingPointLon]);
-    this.paths.push(metingPointMarker);
+    const meetingPointMarker = L.marker([metingPointLat, metingPointLon]);
+    this.paths.push(meetingPointMarker);
     // @ts-ignore
-    metingPointMarker.addTo(this.map);
-    //  TODO: clean marker
+    meetingPointMarker.addTo(this.map);
   }
 
   private static getRandomColor() {
@@ -194,25 +236,32 @@ export class MapComponent implements AfterViewInit {
     }
 
     let i = 0;
-    for (const [key, value] of Object.entries(this.userData)) {
+    for (const [, value] of Object.entries(this.userData)) {
       const m = L.Routing.control({
         router: L.Routing.osrmv1({
-          serviceUrl: `http://router.project-osrm.org/route/v1/`
+          serviceUrl: `http://router.project-osrm.org/route/v1/`,
+
         }),
+        // router: L.Routing.graphHopper('a585904f-5193-4605-bc3c-870c4f472177' , {
+        //   urlParameters: {
+        //     vehicle: 'car'
+        //   }
+        // })
         // @ts-ignore
         lineOptions: {styles: [{color: colors[i], weight: 7}]},
         // disable creatMarker
         createMarker: () => {
           return null;
         },
+        fitSelectedRoutes: false,
         waypoints: [
           // @ts-ignore
           L.latLng(value.lat, value.lon),
           L.latLng(metingPointLat, metingPointLon),
         ],
-        addWaypoints: false,
         // @ts-ignore
       }).addTo(this.map);
+      // m.getRouter().options.urlParameters.vehicle = 'foot';
 
       this.paths.push(m);
       i++;
@@ -222,7 +271,33 @@ export class MapComponent implements AfterViewInit {
   private cleanPaths() {
     for (let i = 0; i < this.paths.length; i++) {
       const element = this.paths[i];
-      this.map?.removeControl(element);
+      // if last child (the marker) remove layer
+      if (i === this.paths.length - 1) {
+        this.map?.removeLayer(element);
+      } else {
+        this.map?.removeControl(element);
+      }
     }
+  }
+
+  private saveEditedMarkerPosition(markerId: string, name: string, lat: number, lon: number) {
+    this.db.database.ref('people/' + markerId).update({
+      name: name,
+      lat: lat,
+      lon: lon
+    }).then(() => {
+      console.log('Marker updated');
+    });
+  }
+
+  private saveNewMarkerPosition(name: string, lat: number, lon: number, callback?: (res?:any) => void) {
+    this.db.database.ref('people').push({
+      name: name,
+      lat: lat,
+      lon: lon
+    }).then((res ) => {
+      callback && callback(res);
+      console.log('Marker saved');
+    });
   }
 }

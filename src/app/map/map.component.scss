@@ -39,7 +39,7 @@ app-map {
   .marker-popup__actions {
     display: flex;
     width: 100%;
-    justify-content: end;
+    justify-content: flex-end;
     margin-top: 8px;
 
     span {
@@ -69,4 +69,10 @@ app-map {
   padding: 8px;
   height: 60px;
   background-color: #f5f5f5;
+
+  .map-header__btn-text {
+    @media (max-width:480px)  {
+      display: none;
+    }
+  }
 }
