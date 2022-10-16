@@ -1,14 +1,22 @@
 <div class="map-header">
-  <button (click)="addNewLocation()" mat-raised-button color="primary">
+  <button (click)="addNewLocationTrigger()" mat-raised-button color="primary">
     <span class="material-symbols-outlined">add_location</span>
     <span class="map-header__btn-text">Add Location</span>
+  </button>
+  <button (click)="addNewCheckpointTrigger()" mat-raised-button color="primary">
+    <span class="material-symbols-outlined">push_pin</span>
+    <span class="map-header__btn-text">Add Checkpoint For Me</span>
+  </button>
+  <button (click)="clearCheckpoints()" [disabled]="!myCheckpointMarkersList.length" mat-raised-button color="primary">
+    <span class="material-symbols-outlined">wrong_location</span>
+    <span class="map-header__btn-text">Clear My Checkpoints</span>
   </button>
   <button (click)="calculatePath()" mat-raised-button color="primary">
     <span class="material-symbols-outlined">calculate</span>
     <span class="map-header__btn-text">Calculate Meeting Point</span>
   </button>
 </div>
-<div class="map-container" [ngClass]="{'map-container--new-loc': newLocationTriggerActive}">
+<div class="map-container" [ngClass]="{'map-container--new-loc': newLocationTriggerActive || newCheckpointTriggerActive}">
   <div class="map-frame">
     <div id="map"></div>
   </div>

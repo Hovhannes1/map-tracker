@@ -33,6 +33,7 @@ L.Marker.prototype.options.icon = iconDefault;
 export class MapComponent implements OnDestroy {
 
   public newLocationTriggerActive = false;
+  public newCheckpointTriggerActive = false;
 
   private markers: Array<any> = [];
   private paths: Array<any> = [];
@@ -41,6 +42,9 @@ export class MapComponent implements OnDestroy {
 
   private myCurrentKey: string = '';
   private myCurrentLocation: any;
+  private myCurrentName: string = '';
+  private myCheckpoints: any = [];
+  public myCheckpointMarkersList: any = [];
 
   constructor(
     private markerService: MarkerService,
@@ -52,7 +56,7 @@ export class MapComponent implements OnDestroy {
   ngOnInit(): void {
   //  send my current location fist time I open the app to the database
     navigator.geolocation.getCurrentPosition((position) => {
-      this.saveNewMarkerPosition('Me', position.coords.latitude, position.coords.longitude, (res) => {
+      this.openMarkerEditPopup('New User Name', position.coords.latitude, position.coords.longitude, '' ,(res) => {
         this.myCurrentKey = res.key;
         this.myCurrentLocation = {lat: position.coords.latitude, lon: position.coords.longitude};
 
@@ -71,7 +75,7 @@ export class MapComponent implements OnDestroy {
       const isSignificant = Math.abs(position.coords.latitude - this.myCurrentLocation.lat) > 0.0001 ||
         Math.abs(position.coords.longitude - this.myCurrentLocation.lon) > 0.0001;
       if (isSignificant) {
-        this.saveEditedMarkerPosition(this.myCurrentKey, 'Me', position.coords.latitude, position.coords.longitude);
+        this.saveEditedMarkerPosition(this.myCurrentKey, this.myCurrentName, position.coords.latitude, position.coords.longitude);
       }
     }
   }
@@ -142,6 +146,9 @@ export class MapComponent implements OnDestroy {
         this.openMarkerEditPopup('New User Name', e.latlng.lat, e.latlng.lng);
         this.newLocationTriggerActive = false;
       }
+      if (this.newCheckpointTriggerActive) {
+        this.addNewCheckpoint(e)
+      }
     });
   }
 
@@ -159,11 +166,38 @@ export class MapComponent implements OnDestroy {
     });
   }
 
-  addNewLocation() {
+  addNewLocationTrigger() {
     this.newLocationTriggerActive = true;
   }
 
-  openMarkerEditPopup(name: string, lat: number, lon: number, markerId?: string) {
+  addNewCheckpointTrigger() {
+    this.newCheckpointTriggerActive = true;
+  }
+
+  clearCheckpoints() {
+    this.myCheckpoints = [];
+    this.myCheckpointMarkersList.forEach((marker: any) => {
+      this.map?.removeLayer(marker);
+    });
+    this.myCheckpointMarkersList = [];
+  }
+
+  addNewCheckpoint(e: L.LeafletMouseEvent) {
+    const newCheckpoint = L.latLng(e.latlng.lat, e.latlng.lng)
+    this.myCheckpoints.push(newCheckpoint);
+    const myIcon = L.icon({
+      iconUrl: 'assets/point.png',
+      iconSize: [36, 36],
+      iconAnchor: [18, 35],
+    });
+    const newCheckpointMarker = L.marker(newCheckpoint, {icon: myIcon});
+    this.myCheckpointMarkersList.push(newCheckpointMarker);
+    // @ts-ignore
+    newCheckpointMarker.addTo(this.map);
+    this.newCheckpointTriggerActive = false;
+  }
+
+  openMarkerEditPopup(name: string, lat: number, lon: number, markerId?: string, callback?: (res?:any) => void) {
     const dialogRef = this.dialog.open(MarkerEditPopup, {
       width: '360px',
       data: {name: name, lon: lon, lat: lat}
@@ -174,7 +208,8 @@ export class MapComponent implements OnDestroy {
         if (markerId) {
           this.saveEditedMarkerPosition(markerId, result.name, result.lat, result.lon);
         } else {
-          this.saveNewMarkerPosition(result.name, result.lat, result.lon);
+          if (callback) this.myCurrentName = result.name;
+          this.saveNewMarkerPosition(result.name, result.lat, result.lon, callback ? callback : () => {});
         }
       }
     });
@@ -237,33 +272,56 @@ export class MapComponent implements OnDestroy {
 
     let i = 0;
     for (const [, value] of Object.entries(this.userData)) {
-      const m = L.Routing.control({
-        router: L.Routing.osrmv1({
-          serviceUrl: `http://router.project-osrm.org/route/v1/`,
-
-        }),
-        // router: L.Routing.graphHopper('a585904f-5193-4605-bc3c-870c4f472177' , {
-        //   urlParameters: {
-        //     vehicle: 'car'
-        //   }
-        // })
-        // @ts-ignore
-        lineOptions: {styles: [{color: colors[i], weight: 7}]},
-        // disable creatMarker
-        createMarker: () => {
-          return null;
-        },
-        fitSelectedRoutes: false,
-        waypoints: [
+      let path;
+      // @ts-ignore
+      if (value.name == this.myCurrentName) {
+        path = L.Routing.control({
+          router: L.Routing.osrmv1({
+            serviceUrl: `http://router.project-osrm.org/route/v1/`,
+          }),
+          // router: L.Routing.graphHopper('a585904f-5193-4605-bc3c-870c4f472177' , {
+          //   urlParameters: {
+          //     vehicle: 'car'
+          //   }
+          // })
           // @ts-ignore
-          L.latLng(value.lat, value.lon),
-          L.latLng(metingPointLat, metingPointLon),
-        ],
-        // @ts-ignore
-      }).addTo(this.map);
+          lineOptions: {styles: [{color: colors[i], weight: 7}]},
+          // disable creatMarker
+          createMarker: () => {
+            return null;
+          },
+          fitSelectedRoutes: false,
+          waypoints: [
+            // @ts-ignore
+            L.latLng(value.lat, value.lon),
+            ...this.myCheckpoints,
+            L.latLng(metingPointLat, metingPointLon),
+          ],
+        })
+      } else {
+        path = L.Routing.control({
+          router: L.Routing.osrmv1({
+            serviceUrl: `http://router.project-osrm.org/route/v1/`,
+          }),
+          // @ts-ignore
+          lineOptions: {styles: [{color: colors[i], weight: 7}]},
+          // disable creatMarker
+          createMarker: () => {
+            return null;
+          },
+          fitSelectedRoutes: false,
+          waypoints: [
+            // @ts-ignore
+            L.latLng(value.lat, value.lon),
+            L.latLng(metingPointLat, metingPointLon),
+          ],
+        })
+      }
+      // @ts-ignore
+      path.addTo(this.map);
       // m.getRouter().options.urlParameters.vehicle = 'foot';
 
-      this.paths.push(m);
+      this.paths.push(path);
       i++;
     }
   }
