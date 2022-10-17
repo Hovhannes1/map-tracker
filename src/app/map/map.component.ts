@@ -277,7 +277,7 @@ export class MapComponent implements OnDestroy {
       if (value.name == this.myCurrentName) {
         path = L.Routing.control({
           router: L.Routing.osrmv1({
-            serviceUrl: `http://router.project-osrm.org/route/v1/`,
+            serviceUrl: `https://router.project-osrm.org/route/v1/`,
           }),
           // router: L.Routing.graphHopper('a585904f-5193-4605-bc3c-870c4f472177' , {
           //   urlParameters: {
