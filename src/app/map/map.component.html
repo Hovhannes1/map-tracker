@@ -18,6 +18,10 @@
 </div>
 <div class="map-container" [ngClass]="{'map-container--new-loc': newLocationTriggerActive || newCheckpointTriggerActive}">
   <div class="map-frame">
+    <mat-button-toggle-group class="map-frame__vehicle-toggle" name="vehicleType" aria-label="Font Style" [(ngModel)]="currentVehicleType" (ngModelChange)="refreshPaths()">
+      <mat-button-toggle value="foot">Foot</mat-button-toggle>
+      <mat-button-toggle value="car">Car</mat-button-toggle>
+    </mat-button-toggle-group>
     <div id="map"></div>
   </div>
 </div>

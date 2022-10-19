@@ -6,6 +6,7 @@ app-map {
 }
 
 .map-container {
+  position: relative;
   flex-grow: 1;
   width: 100%;
 
@@ -19,6 +20,14 @@ app-map {
 .map-frame {
   border: 2px solid black;
   height: 100%;
+
+  .map-frame__vehicle-toggle {
+    position: absolute;
+    z-index: 99;
+    top: 28px;
+    right: 28px;
+    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  }
 }
 
 #map {

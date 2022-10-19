@@ -1,7 +1,9 @@
 import {Component, HostListener, OnDestroy, ViewEncapsulation} from '@angular/core';
 import {AngularFireDatabase} from '@angular/fire/compat/database';
+import 'lrm-graphhopper';
 import * as L from 'leaflet';
 import 'leaflet-routing-machine';
+import "lrm-graphhopper";
 
 
 import {MarkerService} from '../marker.service';
@@ -24,6 +26,11 @@ const iconDefault = L.icon({
 });
 L.Marker.prototype.options.icon = iconDefault;
 
+enum VehicleType {
+  CAR = 'car',
+  FOOT = 'foot',
+}
+
 @Component({
   selector: 'app-map',
   templateUrl: './map.component.html',
@@ -44,7 +51,11 @@ export class MapComponent implements OnDestroy {
   private myCurrentLocation: any;
   private myCurrentName: string = '';
   private myCheckpoints: any = [];
+
   public myCheckpointMarkersList: any = [];
+
+  public currentVehicleType: string = VehicleType.FOOT;
+  public currentMeetingPointMarker: any;
 
   constructor(
     private markerService: MarkerService,
@@ -54,9 +65,9 @@ export class MapComponent implements OnDestroy {
   }
 
   ngOnInit(): void {
-  //  send my current location fist time I open the app to the database
+    //  send my current location fist time I open the app to the database
     navigator.geolocation.getCurrentPosition((position) => {
-      this.openMarkerEditPopup('New User Name', position.coords.latitude, position.coords.longitude, '' ,(res) => {
+      this.openMarkerEditPopup('New User Name', position.coords.latitude, position.coords.longitude, '', (res) => {
         this.myCurrentKey = res.key;
         this.myCurrentLocation = {lat: position.coords.latitude, lon: position.coords.longitude};
 
@@ -85,7 +96,7 @@ export class MapComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-  //  delete my location from the database when I close the app
+    //  delete my location from the database when I close the app
     this.db.database.ref('people/' + this.myCurrentKey).remove().then(() => {
       console.log('Marker deleted');
     });
@@ -197,7 +208,7 @@ export class MapComponent implements OnDestroy {
     this.newCheckpointTriggerActive = false;
   }
 
-  openMarkerEditPopup(name: string, lat: number, lon: number, markerId?: string, callback?: (res?:any) => void) {
+  openMarkerEditPopup(name: string, lat: number, lon: number, markerId?: string, callback?: (res?: any) => void) {
     const dialogRef = this.dialog.open(MarkerEditPopup, {
       width: '360px',
       data: {name: name, lon: lon, lat: lat}
@@ -209,13 +220,14 @@ export class MapComponent implements OnDestroy {
           this.saveEditedMarkerPosition(markerId, result.name, result.lat, result.lon);
         } else {
           if (callback) this.myCurrentName = result.name;
-          this.saveNewMarkerPosition(result.name, result.lat, result.lon, callback ? callback : () => {});
+          this.saveNewMarkerPosition(result.name, result.lat, result.lon, callback ? callback : () => {
+          });
         }
       }
     });
   }
 
-  calculateMeetingPoints(size: number) {
+  calculateMeetingPoint(size: number) {
     // calculating the meeting point
     let sumOfLat = 0;
     let sumOfLon = 0;
@@ -233,7 +245,7 @@ export class MapComponent implements OnDestroy {
     const size = Object.keys(this.userData).length;
 
     // calculating the meeting point
-    const [metingPointLat, metingPointLon] = this.calculateMeetingPoints(size);
+    const [metingPointLat, metingPointLon] = this.calculateMeetingPoint(size);
 
     //check if there are paths already if yes remove them
     if (this.paths.length > 0) {
@@ -248,10 +260,9 @@ export class MapComponent implements OnDestroy {
     }
 
     // adding meeting point marker
-    const meetingPointMarker = L.marker([metingPointLat, metingPointLon]);
-    this.paths.push(meetingPointMarker);
+    this.currentMeetingPointMarker = L.marker([metingPointLat, metingPointLon]);
     // @ts-ignore
-    meetingPointMarker.addTo(this.map);
+    this.currentMeetingPointMarker.addTo(this.map);
   }
 
   private static getRandomColor() {
@@ -276,16 +287,15 @@ export class MapComponent implements OnDestroy {
       // @ts-ignore
       if (value.name == this.myCurrentName) {
         path = L.Routing.control({
-          router: L.Routing.osrmv1({
-            serviceUrl: `https://router.project-osrm.org/route/v1/`,
+          // @ts-ignore
+          router: L.Routing.GraphHopper('54733eee-84a4-4e19-b06a-58d46e6468ce', {
+            urlParameters: {
+              vehicle: this.currentVehicleType
+            }
           }),
-          // router: L.Routing.graphHopper('a585904f-5193-4605-bc3c-870c4f472177' , {
-          //   urlParameters: {
-          //     vehicle: 'car'
-          //   }
-          // })
           // @ts-ignore
           lineOptions: {styles: [{color: colors[i], weight: 7}]},
+          showAlternatives: false,
           // disable creatMarker
           createMarker: () => {
             return null;
@@ -300,11 +310,15 @@ export class MapComponent implements OnDestroy {
         })
       } else {
         path = L.Routing.control({
-          router: L.Routing.osrmv1({
-            serviceUrl: `http://router.project-osrm.org/route/v1/`,
+          // @ts-ignore
+          router: L.Routing.GraphHopper('54733eee-84a4-4e19-b06a-58d46e6468ce', {
+            urlParameters: {
+              vehicle: this.currentVehicleType
+            }
           }),
           // @ts-ignore
           lineOptions: {styles: [{color: colors[i], weight: 7}]},
+          showAlternatives: false,
           // disable creatMarker
           createMarker: () => {
             return null;
@@ -327,15 +341,16 @@ export class MapComponent implements OnDestroy {
   }
 
   private cleanPaths() {
-    for (let i = 0; i < this.paths.length; i++) {
-      const element = this.paths[i];
-      // if last child (the marker) remove layer
-      if (i === this.paths.length - 1) {
-        this.map?.removeLayer(element);
-      } else {
-        this.map?.removeControl(element);
-      }
+    // remove currentMeetingPointMarker if exists
+    if (this.currentMeetingPointMarker) {
+      this.map?.removeLayer(this.currentMeetingPointMarker);
+      this.currentMeetingPointMarker = null;
     }
+    for (let i = 0; i < this.paths.length; i++) {
+      this.map?.removeControl(this.paths[i]);
+      this.paths[i] = null;
+    }
+    this.paths = [];
   }
 
   private saveEditedMarkerPosition(markerId: string, name: string, lat: number, lon: number) {
@@ -348,14 +363,21 @@ export class MapComponent implements OnDestroy {
     });
   }
 
-  private saveNewMarkerPosition(name: string, lat: number, lon: number, callback?: (res?:any) => void) {
+  private saveNewMarkerPosition(name: string, lat: number, lon: number, callback?: (res?: any) => void) {
     this.db.database.ref('people').push({
       name: name,
       lat: lat,
       lon: lon
-    }).then((res ) => {
+    }).then((res) => {
       callback && callback(res);
       console.log('Marker saved');
     });
+  }
+
+  refreshPaths() {
+    if (this.currentMeetingPointMarker) {
+      this.cleanPaths();
+      this.calculatePath();
+    }
   }
 }
