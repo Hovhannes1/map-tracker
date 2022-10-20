@@ -260,7 +260,12 @@ export class MapComponent implements OnDestroy {
     }
 
     // adding meeting point marker
-    this.currentMeetingPointMarker = L.marker([metingPointLat, metingPointLon]);
+    const meetingIcon = L.icon({
+      iconUrl: 'assets/finish.png',
+      iconSize: [36, 36],
+      iconAnchor: [6, 35],
+    });
+    this.currentMeetingPointMarker = L.marker([metingPointLat, metingPointLon], {icon: meetingIcon});
     // @ts-ignore
     this.currentMeetingPointMarker.addTo(this.map);
   }
